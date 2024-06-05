@@ -1,0 +1,2 @@
+G r dt n steps
+m x y z vx vy vz	//n times
