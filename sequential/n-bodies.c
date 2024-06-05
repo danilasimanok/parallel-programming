@@ -134,12 +134,12 @@ void move(
 		);
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	double gravitation_const, body_radius, model_delta_t;
 	int bodies_count, simulation_steps;
 	
-	FILE *in_file = fopen("task.txt", "r");
+	FILE *in_file = fopen(argv[1], "r");
 	fscanf(
 		in_file, "%lf %lf %lf %d %d",
 		&gravitation_const, &body_radius, &model_delta_t,
