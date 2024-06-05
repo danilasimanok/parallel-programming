@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 typedef struct Vector3 {
 	double x;
@@ -151,6 +152,9 @@ int main(int argc, char **argv)
 		bodies[i] = read_body(in_file);
 			
 	fclose(in_file);
+
+	clock_t begin, end;
+	begin = clock();
 	
 	Vector3 accelerations[bodies_count * bodies_count];
 	for (int i = 0; i < simulation_steps; ++i) {
@@ -158,6 +162,9 @@ int main(int argc, char **argv)
 		accelerate(bodies_count, bodies, accelerations);
 		move(model_delta_t, bodies_count, bodies);
 	}
+
+	end = clock();
+	printf("Time taken: %lf sec\n", ((double) (end - begin)) / CLOCKS_PER_SEC);
 
 	for (int i = 0; i < bodies_count; ++i) {
 		write_body(stdout, bodies[i]);
