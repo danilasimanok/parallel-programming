@@ -168,18 +168,18 @@ int main(int argc, char **argv)
 			
 	fclose(task_file);
 
-	clock_t begin, end;
-	begin = clock();
+	double begin, end;
+	begin = omp_get_wtime();
 	
 	Vector3 accelerations[bodies_count * bodies_count];
-    for (int i = 0; i < simulation_steps; ++i) {
+	for (int i = 0; i < simulation_steps; ++i) {
 		calculate_accelerations(gravitation_const, body_radius, bodies_count, bodies, accelerations);
 		accelerate(bodies_count, bodies, accelerations);
 		move(model_delta_t, bodies_count, bodies);
 	}
 
-	end = clock();
-	printf("Time taken: %lf sec\n", ((double) (end - begin)) / CLOCKS_PER_SEC);
+	end = omp_get_wtime();
+	printf("Time taken: %lf sec\n", end - begin);
 
 	FILE *solution_file = fopen(argv[2], "w");
 	for (int i = 0; i < bodies_count; ++i) {
