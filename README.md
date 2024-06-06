@@ -19,18 +19,40 @@ m x y z vx vy vz	//n раз
 
 ## Компилляция и запуск
 
+### Последовательная программа
+
 Для компилляции последовательной программы используется команда
 
-`gcc sequential/n-bodies.c -o sequential/n-bodies.nexe -lm`
+`$ gcc sequential/n-bodies.c -o sequential/n-bodies.nexe -lm`
 
 Для запуска с тестовыми данными
 
-`./sequential/n-bodies.nexe tasks/debug/task.txt path/to/solution.txt`
+`$ ./sequential/n-bodies.nexe tasks/debug/1-step/task.txt path/to/solution.txt`
 
-Время работы будет выведено в `stdout`, а результат работы будет схож с тем, что находится по адресу `tasks/debug/solution.txt`.
+Время работы будет выведено в `stdout`, а результат работы будет схож с тем, что находится по адресу `tasks/debug/1-step/solution.txt`.
+
+### Open MP
+
+Для компилляции
+
+`$ gcc open-mp/n-bodies.c -o open-mp/n-bodies.nexe -lm -fopenmp`
+
+Для запуска требуется сначала указать количество используемых процессов
+
+`$ export OMP_NUM_THREADS=4`
+
+В остальном нет отличий.
 
 ## Результаты экспериментов
 
 Понимаю-понимаю, но это лабораторные, отстаньте.
 
+### Последовательная программа
+
 ![sequential](res/sequential.png)
+
+### Open MP
+
+![open-mp](res/open-mp.png)
+
+Примечание: дело в кеше, быть может?
