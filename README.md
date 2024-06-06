@@ -28,3 +28,9 @@ m x y z vx vy vz	//n раз
 `./sequential/n-bodies.nexe tasks/debug/task.txt path/to/solution.txt`
 
 Время работы будет выведено в `stdout`, а результат работы будет схож с тем, что находится по адресу `tasks/debug/solution.txt`.
+
+## Результаты экспериментов
+
+Понимаю-понимаю, но это лабораторные, отстаньте.
+
+![sequential](res/sequential.png)
