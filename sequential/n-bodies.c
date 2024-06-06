@@ -140,18 +140,18 @@ int main(int argc, char **argv)
 	double gravitation_const, body_radius, model_delta_t;
 	int bodies_count, simulation_steps;
 	
-	FILE *in_file = fopen(argv[1], "r");
+	FILE *task_file = fopen(argv[1], "r");
 	fscanf(
-		in_file, "%lf %lf %lf %d %d",
+		task_file, "%lf %lf %lf %d %d",
 		&gravitation_const, &body_radius, &model_delta_t,
 		&bodies_count, &simulation_steps
 	);
 	
 	Body bodies[bodies_count];
 	for (int i = 0; i < bodies_count; ++i)
-		bodies[i] = read_body(in_file);
+		bodies[i] = read_body(task_file);
 			
-	fclose(in_file);
+	fclose(task_file);
 
 	clock_t begin, end;
 	begin = clock();
@@ -166,10 +166,12 @@ int main(int argc, char **argv)
 	end = clock();
 	printf("Time taken: %lf sec\n", ((double) (end - begin)) / CLOCKS_PER_SEC);
 
+	FILE *solution_file = fopen(argv[2], "w");
 	for (int i = 0; i < bodies_count; ++i) {
-		write_body(stdout, bodies[i]);
-		printf("\n");
+		write_body(solution_file, bodies[i]);
+		fprintf(solution_file, "\n");
 	}
+	fclose(solution_file);
 	
 	return 0;
 }
