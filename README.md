@@ -25,6 +25,6 @@ m x y z vx vy vz	//n раз
 
 Для запуска с тестовыми данными
 
-`./sequential/n-bodies.nexe tasks/debug/task.txt`
+`./sequential/n-bodies.nexe tasks/debug/task.txt path/to/solution.txt`
 
-Результат работы будет схож с тем, что находится по адресу `tasks/debug/solution.txt`.
+Время работы будет выведено в `stdout`, а результат работы будет схож с тем, что находится по адресу `tasks/debug/solution.txt`.
