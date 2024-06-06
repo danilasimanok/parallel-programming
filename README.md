@@ -54,5 +54,3 @@ m x y z vx vy vz	//n раз
 ### Open MP
 
 ![open-mp](res/open-mp.png)
-
-Примечание: дело в кеше, быть может?

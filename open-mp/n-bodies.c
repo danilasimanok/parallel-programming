@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
 #include <omp.h>
 
 typedef struct Vector3 {
