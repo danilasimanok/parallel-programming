@@ -43,6 +43,13 @@ m x y z vx vy vz	//n раз
 
 В остальном нет отличий.
 
+### OpenCL
+
+Я использовал эти две ссылки:
+
+- https://forums.linuxmint.com/viewtopic.php?t=362544
+- https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md
+
 ## Результаты экспериментов
 
 Понимаю-понимаю, но это лабораторные, отстаньте.
