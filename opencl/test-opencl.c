@@ -41,19 +41,6 @@
 // output: c float vector of length count holding the sum a + b
 //
 
-const char *KernelSource = "\n" \
-"__kernel void vadd(                                                 \n" \
-"   __global float* a,                                                  \n" \
-"   __global float* b,                                                  \n" \
-"   __global float* c,                                                  \n" \
-"   const unsigned int count)                                           \n" \
-"{                                                                      \n" \
-"   int i = get_global_id(0);                                           \n" \
-"   if(i < count)                                                       \n" \
-"       c[i] = a[i] + b[i];                                             \n" \
-"}                                                                      \n" \
-"\n";
-
 void checkError(cl_int error, char *description)
 {
     if (error == CL_SUCCESS)
@@ -61,11 +48,37 @@ void checkError(cl_int error, char *description)
     fprintf(stderr, "%s\n", description);
 }
 
+char *getKernelSource(char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (!file)
+    {
+        fprintf(stderr, "Error: Could not open kernel source file\n");
+        exit(EXIT_FAILURE);
+    }
+    fseek(file, 0, SEEK_END);
+    int len = ftell(file) + 1;
+    rewind(file);
+
+    char *source = (char *)calloc(sizeof(char), len);
+    if (!source)
+    {
+        fprintf(stderr, "Error: Could not allocate memory for source string\n");
+        exit(EXIT_FAILURE);
+    }
+    fread(source, sizeof(char), len, file);
+    fclose(file);
+    return source;
+}
+
 //------------------------------------------------------------------------------
 
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc < 2)
+        return -1;
+    
     cl_int          err;               // error code returned from OpenCL calls
 
     size_t dataSize = sizeof(float) * LENGTH;
@@ -139,11 +152,12 @@ int main()
     checkError(err, "Creating context");
 
     // Create a command queue
-    commands = clCreateCommandQueue(context, device_id, 0, &err);
+    commands = clCreateCommandQueueWithProperties(context, device_id, NULL, &err);
     checkError(err, "Creating command queue");
 
     // Create the compute program from the source buffer
-    program = clCreateProgramWithSource(context, 1, (const char **) & KernelSource, NULL, &err);
+    char *kernel_source = getKernelSource(argv[1]);
+    program = clCreateProgramWithSource(context, 1, (const char **) & kernel_source, NULL, &err);
     checkError(err, "Creating program");
 
     // Build the program  
@@ -255,6 +269,7 @@ int main()
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
 
+    free(kernel_source);
     free(h_a);
     free(h_b);
     free(h_c);
