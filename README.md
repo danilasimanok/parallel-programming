@@ -50,6 +50,12 @@ m x y z vx vy vz	//n раз
 - https://forums.linuxmint.com/viewtopic.php?t=362544
 - https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md
 
+[Полезная ссылка для понимания терминологии.](https://youtu.be/AJnIdwbP5jI)
+
+Функции kernel пишутся отдельно от main в своем особом формате, и их еще недо прочитать.
+
+https://github.com/HandsOnOpenCL/Exercises-Solutions/blob/master/Solutions/Exercise04/C/vadd_chain.c
+
 ## Результаты экспериментов
 
 Понимаю-понимаю, но это лабораторные, отстаньте.
