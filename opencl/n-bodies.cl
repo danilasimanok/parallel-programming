@@ -61,7 +61,7 @@ Vector3 induced_acceleration(
 	return multiply(body_2.mass, density);
 }
 
-__kernel void acc(
+__kernel void sol(
 	__constant float *g,
     __constant float *body_radius,
 	__constant int *bodies_count_ptr,

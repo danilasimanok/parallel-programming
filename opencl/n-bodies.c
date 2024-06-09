@@ -1,6 +1,6 @@
-#include <CL/cl_platform.h>
 #include <stdio.h>
 #include <CL/cl.h>
+#include <time.h>
 
 typedef struct __attribute__ ((packed)) Vector3 {
     float x;
@@ -257,7 +257,7 @@ int main(int argc, char **argv)
 
     cl_program program;
     status = build_from_source(argv[1], context, device_id, &program);
-    cl_kernel calc_acc = clCreateKernel(program, "acc", &status);
+    cl_kernel solve = clCreateKernel(program, "sol", &status);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Boom! Status: %s\n", err_code(status));
         return 1488;
@@ -271,18 +271,23 @@ int main(int argc, char **argv)
         accelerations_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, bodies_count * bodies_count * sizeof(Vector3), NULL, &status),
         bodies_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  bodies_count * sizeof(Body), bodies, &status);
     
-    status = clSetKernelArg(calc_acc, 0u, sizeof(cl_mem), &g_mem);
-    status |= clSetKernelArg(calc_acc, 1u, sizeof(cl_mem), &body_radius_mem);
-    status |= clSetKernelArg(calc_acc, 2u, sizeof(cl_mem), &bodies_count_mem);
-    status |= clSetKernelArg(calc_acc, 3u, sizeof(cl_mem), &model_dt_mem);
-    status |= clSetKernelArg(calc_acc, 4u, sizeof(cl_mem), &simulation_steps_mem);
-    status |= clSetKernelArg(calc_acc, 5u, sizeof(cl_mem), &accelerations_mem);
-    status |= clSetKernelArg(calc_acc, 6u, sizeof(cl_mem), &bodies_mem);
+    status = clSetKernelArg(solve, 0u, sizeof(cl_mem), &g_mem);
+    status |= clSetKernelArg(solve, 1u, sizeof(cl_mem), &body_radius_mem);
+    status |= clSetKernelArg(solve, 2u, sizeof(cl_mem), &bodies_count_mem);
+    status |= clSetKernelArg(solve, 3u, sizeof(cl_mem), &model_dt_mem);
+    status |= clSetKernelArg(solve, 4u, sizeof(cl_mem), &simulation_steps_mem);
+    status |= clSetKernelArg(solve, 5u, sizeof(cl_mem), &accelerations_mem);
+    status |= clSetKernelArg(solve, 6u, sizeof(cl_mem), &bodies_mem);
+
+    double begin = clock(),
+        end;
 
     size_t global_work_size[] = { bodies_count, bodies_count };
-    status = clEnqueueNDRangeKernel(commands, calc_acc, 2, NULL, global_work_size, global_work_size, 0u, NULL, NULL);
-
+    status = clEnqueueNDRangeKernel(commands, solve, 2, NULL, global_work_size, global_work_size, 0u, NULL, NULL);
     status = clEnqueueReadBuffer(commands, bodies_mem, CL_TRUE, 0, bodies_count * sizeof(Body), bodies, 0, NULL, NULL);
+
+    end = clock();
+    printf("Time taken: %lf sec\n", ((double) (end - begin)) / CLOCKS_PER_SEC);
 
     clReleaseMemObject(g_mem);
     clReleaseMemObject(body_radius_mem);
@@ -290,7 +295,7 @@ int main(int argc, char **argv)
     clReleaseMemObject(bodies_mem);
     clReleaseMemObject(accelerations_mem);
     clReleaseProgram(program);
-    clReleaseKernel(calc_acc);
+    clReleaseKernel(solve);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
 
