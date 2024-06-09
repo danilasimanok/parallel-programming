@@ -198,14 +198,30 @@ const char *err_code (cl_int err_in)
     }
 }
 
+Vector3 read_vector(FILE *stream)
+{
+	float x, y, z;
+	fscanf(stream, "%f %f %f", &x, &y, &z);
+    Vector3 result = { x, y, z };
+	return result;
+}
+
 void write_vector(FILE *stream, Vector3 v)
 {
-	fprintf(stream, "(%lf, %lf, %lf)", v.x, v.y, v.z);
+	fprintf(stream, "(%f, %f, %f)", v.x, v.y, v.z);
+}
+
+Body read_body(FILE *stream)
+{
+	float mass;
+	fscanf(stream, "%f", &mass);
+	Body result = { read_vector(stream), read_vector(stream), mass };
+	return result;
 }
 
 void write_body(FILE *stream, Body body)
 {
-	fprintf(stream, "body {\n\t'mass': %lf\n\t'position': ", body.mass);
+	fprintf(stream, "body {\n\t'mass': %f\n\t'position': ", body.mass);
 	write_vector(stream, body.position);
 	fprintf(stream, "\n\t'velocity': ");
 	write_vector(stream, body.velocity);
@@ -214,21 +230,25 @@ void write_body(FILE *stream, Body body)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
+    if (argc < 4) {
         return 1488;
     }
 
-    Vector3 position1 = { 3.0f, 0.0f, 0.0f },
-        position2 = { 0.0f, 4.0f, 0.0f },
-        velocity = { 0.0f, 0.0f, 0.0f };
-    float g = 1.0f, body_radius = 0.01f, model_dt = 1.0f, mass1 = 0.5f, mass2 = 2.0f;
-    Body b1 = { position1, velocity, mass1 },
-        b2 = { position2, velocity, mass2 };
-    
-    int bodies_count = 2,
-        bodies_count_sq = bodies_count * bodies_count;
-    Body bodies[] = { b1, b2 };
-    //Vector3 accelerations[bodies_count_sq];
+    float g, body_radius, model_dt;
+	int bodies_count, simulation_steps;
+	
+	FILE *task_file = fopen(argv[2], "r");
+	fscanf(
+		task_file, "%f %f %f %d %d",
+		&g, &body_radius, &model_dt,
+		&bodies_count, &simulation_steps
+	);
+	
+	Body bodies[bodies_count];
+	for (int i = 0; i < bodies_count; ++i)
+		bodies[i] = read_body(task_file);
+			
+	fclose(task_file);
 
     cl_device_id device_id;
     cl_int status = get_device_id(&device_id);
@@ -247,7 +267,7 @@ int main(int argc, char **argv)
         body_radius_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &body_radius, &status),
         bodies_count_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(int), &bodies_count, &status),
         model_dt_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &model_dt, &status),
-        accelerations_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, bodies_count_sq * sizeof(Vector3), NULL, &status),
+        accelerations_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, bodies_count * bodies_count * sizeof(Vector3), NULL, &status),
         bodies_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  bodies_count * sizeof(Body), bodies, &status);
     
     status = clSetKernelArg(calc_acc, 0u, sizeof(cl_mem), &g_mem);
@@ -261,10 +281,6 @@ int main(int argc, char **argv)
     status = clEnqueueNDRangeKernel(commands, calc_acc, 2, NULL, global_work_size, global_work_size, 0u, NULL, NULL);
 
     status = clEnqueueReadBuffer(commands, bodies_mem, CL_TRUE, 0, bodies_count * sizeof(Body), bodies, 0, NULL, NULL);
-    for (int i = 0; i < bodies_count; ++i) {
-        write_body(stdout, bodies[i]);
-        printf("\n");
-    }
 
     clReleaseMemObject(g_mem);
     clReleaseMemObject(body_radius_mem);
@@ -275,6 +291,13 @@ int main(int argc, char **argv)
     clReleaseKernel(calc_acc);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
+
+    FILE *solution_file = fopen(argv[3], "w");
+	for (int i = 0; i < bodies_count; ++i) {
+		write_body(solution_file, bodies[i]);
+		fprintf(solution_file, "\n");
+	}
+	fclose(solution_file);
 
     return 0;
 }
