@@ -45,16 +45,22 @@ m x y z vx vy vz	//n раз
 
 ### OpenCL
 
-Я использовал эти две ссылки:
+Для компилляции предварительно требуется настроить поддержку OpenCL на своей машине:
 
-- https://forums.linuxmint.com/viewtopic.php?t=362544
-- https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md
+```
+$ sudo apt install opencl-headers ocl-icd-opencl-dev -y
+$ sudo apt install libpocl2 clinfo
+```
 
-[Полезная ссылка для понимания терминологии.](https://youtu.be/AJnIdwbP5jI)
+Команды выше сработали для моей виртуальной машины на Ubuntu. Для того, чтобы установить поддержку на другие машины могут подойти эти ссылки: [1](https://forums.linuxmint.com/viewtopic.php?t=362544), [2](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md).
 
-Функции kernel пишутся отдельно от main в своем особом формате, и их еще недо прочитать.
+После настройки можно приступить непосредственно к компилляции.
 
-https://github.com/HandsOnOpenCL/Exercises-Solutions/blob/master/Solutions/Exercise04/C/vadd_chain.c
+`$ gcc -Wall -Wextra -D CL_TARGET_OPENCL_VERSION=300 opencl/n-bodies.c -o opencl/n-bodies.nexe -lOpenCL`
+
+Для запуска потребуется, помимо файла с задачей, указать путь к `.cl`-файлу с кодом ядра. Команда для запуска:
+
+`$ ./opencl/n-bodies.nexe opencl/n-bodies.cl tasks/debug/1-step/task.txt path/to/solution.txt`
 
 ## Результаты экспериментов
 
@@ -67,3 +73,7 @@ https://github.com/HandsOnOpenCL/Exercises-Solutions/blob/master/Solutions/Exerc
 ### Open MP
 
 ![open-mp](res/open-mp.png)
+
+### OpenCL
+
+![opencl](res/opencl.png)
