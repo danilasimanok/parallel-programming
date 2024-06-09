@@ -66,59 +66,64 @@ __kernel void acc(
     __constant float *body_radius,
 	__constant int *bodies_count_ptr,
     __constant float *model_dt,
+    __constant int *steps_count_ptr,
     __global Vector3 *accelerations,
     __global Body *bodies
 )
 {
     int i = get_global_id(0),
         j = get_global_id(1),
-        bodies_count = *bodies_count_ptr;
+        bodies_count = *bodies_count_ptr,
+        steps_count = *steps_count_ptr;
     
-    // calculate accelerations
-    if (i == j)
-        accelerations[i * bodies_count + j].x =
-            accelerations[i * bodies_count + j].y = 
-            accelerations[i * bodies_count + j].z = 0.0;
-    else
-        accelerations[i * bodies_count + j] = induced_acceleration(
-            *g, *body_radius, bodies[i], bodies[j]
-        );
-    
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
-    // sum accelerations
-    int length = bodies_count;
-    while (length > 1) {
-        int length_is_odd = length % 2;
-        
-        if (j < length / 2)
-            accelerations[i * bodies_count + j] = plus(
-                accelerations[i * bodies_count + 2 * j],
-                accelerations[i * bodies_count + 2 * j + 1]
+    for (int step = 0; step < steps_count; ++step) {
+        // calculate accelerations
+        if (i == j)
+            accelerations[i * bodies_count + j].x =
+                accelerations[i * bodies_count + j].y = 
+                accelerations[i * bodies_count + j].z = 0.0;
+        else
+            accelerations[i * bodies_count + j] = induced_acceleration(
+                *g, *body_radius, bodies[i], bodies[j]
             );
-        else if ((j == length / 2) && length_is_odd)
-            accelerations[i * bodies_count + j] =
-                accelerations[i * bodies_count + length - 1];
-        
-        length /= 2;
-        if (length_is_odd)
-            length += 1;
         
         barrier(CLK_GLOBAL_MEM_FENCE);
-    }
 
-    // accelerate
-    if (j == 0)
-        bodies[i].velocity = plus(
-            bodies[i].velocity,
-            accelerations[i * bodies_count]
-        );
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    
-    // move
-    if (j == 0)
-        bodies[i].position = plus(
-            bodies[i].position,
-            multiply(*model_dt, bodies[i].velocity)
-        );
+        // sum accelerations
+        int length = bodies_count;
+        while (length > 1) {
+            int length_is_odd = length % 2;
+            
+            if (j < length / 2)
+                accelerations[i * bodies_count + j] = plus(
+                    accelerations[i * bodies_count + 2 * j],
+                    accelerations[i * bodies_count + 2 * j + 1]
+                );
+            else if ((j == length / 2) && length_is_odd)
+                accelerations[i * bodies_count + j] =
+                    accelerations[i * bodies_count + length - 1];
+            
+            length /= 2;
+            if (length_is_odd)
+                length += 1;
+            
+            barrier(CLK_GLOBAL_MEM_FENCE);
+        }
+
+        // accelerate
+        if (j == 0)
+            bodies[i].velocity = plus(
+                bodies[i].velocity,
+                accelerations[i * bodies_count]
+            );
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        
+        // move
+        if (j == 0)
+            bodies[i].position = plus(
+                bodies[i].position,
+                multiply(*model_dt, bodies[i].velocity)
+            );
+        }
+        barrier(CLK_GLOBAL_MEM_FENCE);
 }

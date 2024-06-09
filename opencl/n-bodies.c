@@ -267,6 +267,7 @@ int main(int argc, char **argv)
         body_radius_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &body_radius, &status),
         bodies_count_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(int), &bodies_count, &status),
         model_dt_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &model_dt, &status),
+        simulation_steps_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(int), &simulation_steps, &status),
         accelerations_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, bodies_count * bodies_count * sizeof(Vector3), NULL, &status),
         bodies_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  bodies_count * sizeof(Body), bodies, &status);
     
@@ -274,8 +275,9 @@ int main(int argc, char **argv)
     status |= clSetKernelArg(calc_acc, 1u, sizeof(cl_mem), &body_radius_mem);
     status |= clSetKernelArg(calc_acc, 2u, sizeof(cl_mem), &bodies_count_mem);
     status |= clSetKernelArg(calc_acc, 3u, sizeof(cl_mem), &model_dt_mem);
-    status |= clSetKernelArg(calc_acc, 4u, sizeof(cl_mem), &accelerations_mem);
-    status |= clSetKernelArg(calc_acc, 5u, sizeof(cl_mem), &bodies_mem);
+    status |= clSetKernelArg(calc_acc, 4u, sizeof(cl_mem), &simulation_steps_mem);
+    status |= clSetKernelArg(calc_acc, 5u, sizeof(cl_mem), &accelerations_mem);
+    status |= clSetKernelArg(calc_acc, 6u, sizeof(cl_mem), &bodies_mem);
 
     size_t global_work_size[] = { bodies_count, bodies_count };
     status = clEnqueueNDRangeKernel(commands, calc_acc, 2, NULL, global_work_size, global_work_size, 0u, NULL, NULL);
