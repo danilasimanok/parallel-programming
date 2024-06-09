@@ -27,12 +27,31 @@ float absolute(Vector3 v)
 	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-__kernel void dist(
-    __global Vector3 *a,
-    __global Vector3 *b,
-    __global float *c
+Vector3 gravity_density(
+    float g, float body_radius,
+    Vector3 delta_r
 )
 {
-    Vector3 diff = minus(*b, *a);
-    *c = absolute(diff);
+	float distance = absolute(delta_r);
+	float denominator =
+        distance > body_radius ? distance * distance : -distance * distance * distance;
+	float abs_density = g / denominator;
+	Vector3 density = {
+		abs_density * delta_r.x / distance,
+		abs_density * delta_r.y / distance,
+		abs_density * delta_r.z / distance
+	};
+	return density;
+}
+
+__kernel void dens(
+    __constant float *g,
+    __constant float *body_radius,
+    __constant Vector3 *v1,
+    __constant Vector3 *v2,
+    __global Vector3 *result
+)
+{
+    Vector3 delta_r = minus(*v2, *v1);
+    *result = gravity_density(*g, *body_radius, delta_r);
 }

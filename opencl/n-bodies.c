@@ -8,6 +8,12 @@ typedef struct __attribute__ ((packed)) Vector3 {
     float z;
 } Vector3;
 
+typedef struct __attribute__ ((packed)) Body {
+	Vector3 position;
+	Vector3 velocity;
+	double mass;
+} Body;
+
 cl_int get_device_id(cl_device_id *result)
 {
     cl_int status;
@@ -199,8 +205,9 @@ int main(int argc, char **argv)
     }
 
     Vector3 v1 = { 0.0f, 4.0f, 0.0f },
-        v2 = { 3.0f, 0.0f, 0.0f };
-    float distance;
+        v2 = { 3.0f, 0.0f, 0.0f },
+        density;
+    float g = 1.0f, body_radius = 0.01f;
 
     cl_device_id device_id;
     cl_int status = get_device_id(&device_id);
@@ -209,7 +216,7 @@ int main(int argc, char **argv)
 
     cl_program program;
     status = build_from_source(argv[1], context, device_id, &program);
-    cl_kernel vector3_add = clCreateKernel(program, "dist", &status);
+    cl_kernel gravity_density = clCreateKernel(program, "dens", &status);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Boom! Status: %s\n", err_code(status));
         return 1488;
@@ -217,23 +224,27 @@ int main(int argc, char **argv)
 
     cl_mem v1_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(Vector3), &v1, &status),
         v2_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(Vector3), &v2, &status),
-        distance_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, sizeof(float), NULL, &status);
+        g_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &g, &status),
+        body_radius_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &body_radius, &status),
+        dens_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, sizeof(Vector3), NULL, &status);
     
-    status = clSetKernelArg(vector3_add, 0u, sizeof(cl_mem), &v1_mem);
-    status |= clSetKernelArg(vector3_add, 1u, sizeof(cl_mem), &v2_mem);
-    status |= clSetKernelArg(vector3_add, 2u, sizeof(cl_mem), &distance_mem);
+    status = clSetKernelArg(gravity_density, 0u, sizeof(cl_mem), &g_mem);
+    status |= clSetKernelArg(gravity_density, 1u, sizeof(cl_mem), &body_radius_mem);
+    status |= clSetKernelArg(gravity_density, 2u, sizeof(cl_mem), &v1_mem);
+    status |= clSetKernelArg(gravity_density, 3u, sizeof(cl_mem), &v2_mem);
+    status |= clSetKernelArg(gravity_density, 4u, sizeof(cl_mem), &dens_mem);
 
     size_t global_work_size = 1;
-    status = clEnqueueNDRangeKernel(commands, vector3_add, 1, NULL, &global_work_size, NULL, 0u, NULL, NULL);
+    status = clEnqueueNDRangeKernel(commands, gravity_density, 1, NULL, &global_work_size, NULL, 0u, NULL, NULL);
 
-    status = clEnqueueReadBuffer(commands, distance_mem, CL_TRUE, 0, sizeof(float), &distance, 0, NULL, NULL);
-    printf("distance = %f\n", distance);
+    status = clEnqueueReadBuffer(commands, dens_mem, CL_TRUE, 0, sizeof(Vector3), &density, 0, NULL, NULL);
+    printf("dens = (%f, %f, %f)\n", density.x, density.y, density.z);
 
     clReleaseMemObject(v1_mem);
     clReleaseMemObject(v2_mem);
-    clReleaseMemObject(distance_mem);
+    clReleaseMemObject(dens_mem);
     clReleaseProgram(program);
-    clReleaseKernel(vector3_add);
+    clReleaseKernel(gravity_density);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
 
