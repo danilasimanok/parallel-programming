@@ -19,15 +19,17 @@ m x y z vx vy vz	//n раз
 
 ## Компилляция и запуск
 
+Тестовые задачи и решения для проверки их правильности расположены в `tasks/debug`.
+
 ### Последовательная программа
 
 Для компилляции последовательной программы используется команда
 
 `$ gcc sequential/n-bodies.c -o sequential/n-bodies.nexe -lm`
 
-Для запуска с тестовыми данными
+Для запуска выполнить команду
 
-`$ ./sequential/n-bodies.nexe tasks/debug/1-step/task.txt path/to/solution.txt`
+`$ ./sequential/n-bodies.nexe path/to/task.txt path/to/solution.txt`
 
 Время работы будет выведено в `stdout`, а результат работы будет схож с тем, что находится по адресу `tasks/debug/1-step/solution.txt`.
 
@@ -60,11 +62,23 @@ $ sudo apt install libpocl2 clinfo
 
 Для запуска потребуется, помимо файла с задачей, указать путь к `.cl`-файлу с кодом ядра. Команда для запуска:
 
-`$ ./opencl/n-bodies.nexe opencl/n-bodies.cl tasks/debug/1-step/task.txt path/to/solution.txt`
+`$ ./opencl/n-bodies.nexe opencl/n-bodies.cl path/to/task.txt path/to/solution.txt`
 
 ### MPI
 
-Количество тел должно нацело делиться на количество процессов.
+Для компилляции требуется сначала установить поддержку MPI:
+
+`$ sudo apt install mpich`
+
+После этого можно собрать программу.
+
+`$ mpicc mpi/n-bodies.c -o mpi/n-bodies.nexe -lm`
+
+Для запуска выполнить команду
+
+`$ mpirun -np <n> ./mpi/n-bodies.nexe path/to/task.txt path/to/solution.txt`
+
+**Ограничение:** количество процессов должно делить количество тел. 
 
 ## Результаты экспериментов
 
@@ -81,3 +95,7 @@ $ sudo apt install libpocl2 clinfo
 ### OpenCL
 
 ![opencl](res/opencl.png)
+
+### MPI
+
+![mpi](res/mpi.png)

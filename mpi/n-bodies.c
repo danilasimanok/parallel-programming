@@ -137,8 +137,8 @@ void move(
 }
 
 void master_process(
-    MPI_Datatype mpi_vector3, MPI_Datatype mpi_body,
-    int world_size, char *task_file_name
+    MPI_Datatype mpi_body, int world_size,
+    char *task_file_name, char *solution_file_name
 )
 {
     double g_radius_dt[3]; // gravitation_const, body_radius, model_delta_t
@@ -166,6 +166,9 @@ void master_process(
     get_subtask_parameters(bcount_steps[0], world_size, MASTER_RANK, &offset, &subtask_size);
     Body body_buff[subtask_size];
 
+    double begin = MPI_Wtime(),
+        end;
+
     for (int step = 0; step < bcount_steps[1]; ++step) {
         MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
@@ -182,15 +185,19 @@ void master_process(
         MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
     }
 
+    end = MPI_Wtime();
+    printf("Time taken: %lf sec\n", end - begin);
+
+    FILE *solution_file = fopen(solution_file_name, "w");
     for (int i = 0; i < bcount_steps[0]; ++i) {
-        write_body(stdout, bodies[i]);
-        printf("\n");
+        write_body(solution_file, bodies[i]);
+        fprintf(solution_file, "\n");
     }
 }
 
 void slave_process(
     int p_rank, int world_size,
-    MPI_Datatype mpi_vector3, MPI_Datatype mpi_body
+    MPI_Datatype mpi_body
 )
 {
     double g_radius_dt[3]; // gravitation_const, body_radius, model_delta_t
@@ -252,9 +259,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &p_rank);
 
     if (p_rank == MASTER_RANK)
-        master_process(mpi_vector3, mpi_body, world_size, argv[1]);
+        master_process(mpi_body, world_size, argv[1], argv[2]);
     else
-        slave_process(p_rank, world_size, mpi_vector3, mpi_body);
+        slave_process(p_rank, world_size, mpi_body);
 
     // freeing types
     MPI_Type_free(&mpi_vector3);
