@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stddef.h>
 
+#define MASTER_RANK 0
+
 typedef struct Vector3 {
     double x;
     double y;
@@ -97,50 +99,107 @@ Vector3 induced_acceleration(
     return multiply(body_2.mass, density);
 }
 
-void calculate_accelerations(
+void accelerate(
     double gravitation_const, double body_radius,
-    int bodies_count, Body *bodies, Vector3 *accelerations,
-    int offset, int length
+    int bodies_count, Body *bodies,
+    int offset, int subtask_size
 )
 {
-    for (int i = offset; i < offset + length; ++i)
-        for (int j = 0; j < bodies_count; ++j) {
-            if (i == j)
-                accelerations[i * bodies_count + j].x =
-                    accelerations[i * bodies_count + j].y =
-                    accelerations[i * bodies_count + j].z = 0.0;
-            else
-                accelerations[i * bodies_count + j] = induced_acceleration(
-                    gravitation_const, body_radius, bodies[i], bodies[j]
+    for (int i = offset; i < offset + subtask_size; ++i)
+        for (int j = 0; j < bodies_count; ++j)
+            if (i != j)
+                bodies[i].velocity = plus(
+                    bodies[i].velocity,
+                    induced_acceleration(
+                        gravitation_const, body_radius, bodies[i], bodies[j]
+                    )
                 );
-            printf("%d %d %p\n", i, j, accelerations);
-        }
 }
 
-void master_process(char *task_file_name)
+void get_subtask_parameters(
+    int bodies_count, int world_size, int p_rank,
+    int *offset, int *subtask_size
+)
 {
-    double gravitation_const, body_radius, model_delta_t;
-    int bodies_count, simulation_steps;
+    *subtask_size = bodies_count / world_size;
+    int last_subtask_size = (*subtask_size) + bodies_count % world_size;
+    
+    *offset = p_rank * (*subtask_size);
+    if (p_rank == world_size - 1)
+        *subtask_size = last_subtask_size;
+}
+
+void master_process(
+    MPI_Datatype mpi_vector3, MPI_Datatype mpi_body,
+    int world_size, char *task_file_name
+)
+{
+    double g_radius_dt[3]; // gravitation_const, body_radius, model_delta_t
+    int bcount_steps[2]; // bodies_count, simulation_steps
 
     FILE *task_file = fopen(task_file_name, "r");
+    
     fscanf(
         task_file, "%lf %lf %lf %d %d",
-        &gravitation_const, &body_radius, &model_delta_t,
-        &bodies_count, &simulation_steps
+        g_radius_dt, g_radius_dt + 1, g_radius_dt + 2,
+        bcount_steps, bcount_steps + 1
     );
     
-    Body bodies[bodies_count];
-    for (int i = 0; i < bodies_count; ++i)
+    Body bodies[bcount_steps[0]];
+    for (int i = 0; i < bcount_steps[0]; ++i)
         bodies[i] = read_body(task_file);
     
     fclose(task_file);
     
+    // broadcast parameters
+    MPI_Bcast(g_radius_dt, 3, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(bcount_steps, 2, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+
+    // compute once
+    int offset, subtask_size;
+    get_subtask_parameters(bcount_steps[0], world_size, MASTER_RANK, &offset, &subtask_size);
     
+    accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
+
+    Body send_buffer[subtask_size];
+    for (int i = 0; i < subtask_size; ++i)
+        send_buffer[i] = bodies[offset + i];
+
+    MPI_Gather(send_buffer, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+
+    for (int i = 0; i < bcount_steps[0]; ++i) {
+        write_body(stdout, bodies[i]);
+        printf("\n");
+    }
 }
 
-void slave_process()
+void slave_process(
+    int p_rank, int world_size,
+    MPI_Datatype mpi_vector3, MPI_Datatype mpi_body
+)
 {
+    double g_radius_dt[3]; // gravitation_const, body_radius, model_delta_t
+    int bcount_steps[2]; // bodies_count, simulation_steps
 
+    // receive parameters
+    MPI_Bcast(g_radius_dt, 3, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(bcount_steps, 2, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
+
+    Body bodies[bcount_steps[0]];
+    MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+
+    int offset, subtask_size;
+
+    get_subtask_parameters(bcount_steps[0], world_size, p_rank, &offset, &subtask_size);
+
+    accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
+
+    Body send_buffer[subtask_size];
+    for (int i = 0; i < subtask_size; ++i)
+        send_buffer[i] = bodies[offset + i];
+
+    MPI_Gather(bodies + offset, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 }
 
 int main(int argc, char** argv)
@@ -167,29 +226,14 @@ int main(int argc, char** argv)
     MPI_Type_create_struct(n_items, block_lengths, offsets_body, types_body, &mpi_body);
     MPI_Type_commit(&mpi_body);
 
-    int size, rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == 0) {
-        Vector3 position = { 0.0, 0.0, 0.0 },
-            velocity = { 1.0, 2.0, 3.0 };
-        
-        Body b = { position, velocity, 5.0 };
+    int world_size, p_rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &p_rank);
 
-        const int dest = 1;
-        MPI_Send(&b, 1, mpi_body, dest, 0, MPI_COMM_WORLD);
-
-        printf("Rank %d: sent structure\n", rank);
-    }
-    if (rank == 1) {
-        MPI_Status status;
-        const int src = 0;
-
-        Body b;
-
-        MPI_Recv(&b, 1, mpi_body, src, 0, MPI_COMM_WORLD, &status);
-        write_body(stdout, b);
-        printf("\n");
-    }
+    if (p_rank == MASTER_RANK)
+        master_process(mpi_vector3, mpi_body, world_size, argv[1]);
+    else
+        slave_process(p_rank, world_size, mpi_vector3, mpi_body);
 
     // freeing types
     MPI_Type_free(&mpi_vector3);

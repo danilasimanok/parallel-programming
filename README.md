@@ -62,6 +62,10 @@ $ sudo apt install libpocl2 clinfo
 
 `$ ./opencl/n-bodies.nexe opencl/n-bodies.cl tasks/debug/1-step/task.txt path/to/solution.txt`
 
+### MPI
+
+Нельзя запускать, когда число процессов больше, чем количество тел.
+
 ## Результаты экспериментов
 
 Понимаю-понимаю, но это лабораторные, отстаньте.
