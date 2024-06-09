@@ -4,6 +4,12 @@ typedef struct __attribute__ ((packed)) Vector3 {
     float z;
 } Vector3;
 
+typedef struct __attribute__ ((packed)) Body {
+	Vector3 position;
+	Vector3 velocity;
+	float mass;
+} Body;
+
 Vector3 plus(Vector3 v1, Vector3 v2)
 {
 	Vector3 sum = { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
@@ -44,14 +50,34 @@ Vector3 gravity_density(
 	return density;
 }
 
-__kernel void dens(
-    __constant float *g,
-    __constant float *body_radius,
-    __constant Vector3 *v1,
-    __constant Vector3 *v2,
-    __global Vector3 *result
+// induced by body_2 on body_1
+Vector3 induced_acceleration(
+	float g, float body_radius,
+	Body body_1, Body body_2
 )
 {
-    Vector3 delta_r = minus(*v2, *v1);
-    *result = gravity_density(*g, *body_radius, delta_r);
+	Vector3 delta_r = minus(body_2.position, body_1.position);
+	Vector3 density = gravity_density(g, body_radius, delta_r);
+	return multiply(body_2.mass, density);
+}
+
+__kernel void acc(
+	__constant float *g,
+    __constant float *body_radius,
+	__constant int *bodies_count_ptr,
+    __global Body *bodies,
+    __global Vector3 *accelerations
+)
+{
+    int i = get_global_id(0),
+        j = get_global_id(1),
+        bodies_count = *bodies_count_ptr;
+    if (i == j)
+        accelerations[i * bodies_count + j].x =
+            accelerations[i * bodies_count + j].y = 
+            accelerations[i * bodies_count + j].z = 0.0;
+    else
+        accelerations[i * bodies_count + j] = induced_acceleration(
+            *g, *body_radius, bodies[i], bodies[j]
+        );
 }

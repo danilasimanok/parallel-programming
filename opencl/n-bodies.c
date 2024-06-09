@@ -11,7 +11,7 @@ typedef struct __attribute__ ((packed)) Vector3 {
 typedef struct __attribute__ ((packed)) Body {
 	Vector3 position;
 	Vector3 velocity;
-	double mass;
+	float mass;
 } Body;
 
 cl_int get_device_id(cl_device_id *result)
@@ -204,10 +204,17 @@ int main(int argc, char **argv)
         return 1488;
     }
 
-    Vector3 v1 = { 0.0f, 4.0f, 0.0f },
-        v2 = { 3.0f, 0.0f, 0.0f },
-        density;
-    float g = 1.0f, body_radius = 0.01f;
+    Vector3 position1 = { 3.0f, 0.0f, 0.0f },
+        position2 = { 0.0f, 4.0f, 0.0f },
+        velocity = { 0.0f, 0.0f, 0.0f };
+    float g = 1.0f, body_radius = 0.01f, mass1 = 0.5f, mass2 = 2.0f;
+    Body b1 = { position1, velocity, mass1 },
+        b2 = { position2, velocity, mass2 };
+    
+    int bodies_count = 2,
+        bodies_count_sq = bodies_count * bodies_count;
+    Body bodies[] = { b1, b2 };
+    Vector3 accelerations[bodies_count_sq];
 
     cl_device_id device_id;
     cl_int status = get_device_id(&device_id);
@@ -216,35 +223,46 @@ int main(int argc, char **argv)
 
     cl_program program;
     status = build_from_source(argv[1], context, device_id, &program);
-    cl_kernel gravity_density = clCreateKernel(program, "dens", &status);
+    cl_kernel calc_acc = clCreateKernel(program, "acc", &status);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Boom! Status: %s\n", err_code(status));
         return 1488;
     }
 
-    cl_mem v1_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(Vector3), &v1, &status),
-        v2_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(Vector3), &v2, &status),
-        g_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &g, &status),
+    cl_mem g_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &g, &status),
         body_radius_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(float), &body_radius, &status),
-        dens_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, sizeof(Vector3), NULL, &status);
+        bodies_count_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  sizeof(int), &bodies_count, &status),
+        bodies_mem = clCreateBuffer(context,  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,  bodies_count * sizeof(Body), bodies, &status),
+        accelerations_mem = clCreateBuffer(context,  CL_MEM_READ_WRITE, bodies_count_sq * sizeof(Vector3), NULL, &status);
     
-    status = clSetKernelArg(gravity_density, 0u, sizeof(cl_mem), &g_mem);
-    status |= clSetKernelArg(gravity_density, 1u, sizeof(cl_mem), &body_radius_mem);
-    status |= clSetKernelArg(gravity_density, 2u, sizeof(cl_mem), &v1_mem);
-    status |= clSetKernelArg(gravity_density, 3u, sizeof(cl_mem), &v2_mem);
-    status |= clSetKernelArg(gravity_density, 4u, sizeof(cl_mem), &dens_mem);
+    status = clSetKernelArg(calc_acc, 0u, sizeof(cl_mem), &g_mem);
+    status |= clSetKernelArg(calc_acc, 1u, sizeof(cl_mem), &body_radius_mem);
+    status |= clSetKernelArg(calc_acc, 2u, sizeof(cl_mem), &bodies_count_mem);
+    status |= clSetKernelArg(calc_acc, 3u, sizeof(cl_mem), &bodies_mem);
+    status |= clSetKernelArg(calc_acc, 4u, sizeof(cl_mem), &accelerations_mem);
 
-    size_t global_work_size = 1;
-    status = clEnqueueNDRangeKernel(commands, gravity_density, 1, NULL, &global_work_size, NULL, 0u, NULL, NULL);
+    size_t global_work_size[] = { bodies_count, bodies_count };
+    status = clEnqueueNDRangeKernel(commands, calc_acc, 2, NULL, global_work_size, global_work_size, 0u, NULL, NULL);
 
-    status = clEnqueueReadBuffer(commands, dens_mem, CL_TRUE, 0, sizeof(Vector3), &density, 0, NULL, NULL);
-    printf("dens = (%f, %f, %f)\n", density.x, density.y, density.z);
+    status = clEnqueueReadBuffer(commands, accelerations_mem, CL_TRUE, 0, bodies_count_sq * sizeof(Vector3), accelerations, 0, NULL, NULL);
+    for (int i = 0; i < bodies_count; ++i) {
+        for (int j = 0; j < bodies_count; ++j)
+            printf(
+                "(%f, %f, %f)\t",
+                accelerations[i * bodies_count + j].x,
+                accelerations[i * bodies_count + j].y,
+                accelerations[i * bodies_count + j].z
+            );
+        printf("\n");
+    }
 
-    clReleaseMemObject(v1_mem);
-    clReleaseMemObject(v2_mem);
-    clReleaseMemObject(dens_mem);
+    clReleaseMemObject(g_mem);
+    clReleaseMemObject(body_radius_mem);
+    clReleaseMemObject(bodies_count_mem);
+    clReleaseMemObject(bodies_mem);
+    clReleaseMemObject(accelerations_mem);
     clReleaseProgram(program);
-    clReleaseKernel(gravity_density);
+    clReleaseKernel(calc_acc);
     clReleaseCommandQueue(commands);
     clReleaseContext(context);
 
