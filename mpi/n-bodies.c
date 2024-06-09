@@ -147,39 +147,54 @@ int main(int argc, char** argv)
 {
     MPI_Init(NULL, NULL);
 
-    // create MPI types for Vector3
-    const int n_items_vec3 = 3;
-    int block_lengths_vec3[] = {1, 1, 1};
+    // create MPI type for Vector3
+    const int n_items = 3;
+    int block_lengths[] = {1, 1, 1};
     MPI_Datatype types_vec3[] = { MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE },
         mpi_vector3;
     MPI_Aint offsets_vec3[] = {
         offsetof(Vector3, x), offsetof(Vector3, y), offsetof(Vector3, z)
     };
-    MPI_Type_create_struct(n_items_vec3, block_lengths_vec3, offsets_vec3, types_vec3, &mpi_vector3);
+    MPI_Type_create_struct(n_items, block_lengths, offsets_vec3, types_vec3, &mpi_vector3);
     MPI_Type_commit(&mpi_vector3);
+
+    // create mpi type for Body
+    MPI_Datatype types_body[] = { mpi_vector3, mpi_vector3, MPI_DOUBLE },
+        mpi_body;
+    MPI_Aint offsets_body[] = {
+        offsetof(Body, position), offsetof(Body, velocity), offsetof(Body, mass)
+    };
+    MPI_Type_create_struct(n_items, block_lengths, offsets_body, types_body, &mpi_body);
+    MPI_Type_commit(&mpi_body);
 
     int size, rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank == 0) {
-        Vector3 v = { 1.0, 2.0, 3.0 };
+        Vector3 position = { 0.0, 0.0, 0.0 },
+            velocity = { 1.0, 2.0, 3.0 };
+        
+        Body b = { position, velocity, 5.0 };
 
         const int dest = 1;
-        MPI_Send(&v, 1, mpi_vector3, dest, 0, MPI_COMM_WORLD);
+        MPI_Send(&b, 1, mpi_body, dest, 0, MPI_COMM_WORLD);
 
-        printf("Rank %d: sent structure vector\n", rank);
+        printf("Rank %d: sent structure\n", rank);
     }
     if (rank == 1) {
         MPI_Status status;
         const int src = 0;
 
-        Vector3 v;
+        Body b;
 
-        MPI_Recv(&v, 1, mpi_vector3, src, 0, MPI_COMM_WORLD, &status);
-        write_vector(stdout, v);
+        MPI_Recv(&b, 1, mpi_body, src, 0, MPI_COMM_WORLD, &status);
+        write_body(stdout, b);
         printf("\n");
     }
 
+    // freeing types
     MPI_Type_free(&mpi_vector3);
+    MPI_Type_free(&mpi_body);
+
     MPI_Finalize();
 
     return 0;
