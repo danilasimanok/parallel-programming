@@ -9,9 +9,9 @@ typedef struct __attribute__ ((packed)) Vector3 {
 } Vector3;
 
 typedef struct __attribute__ ((packed)) Body {
-	Vector3 position;
-	Vector3 velocity;
-	float mass;
+    Vector3 position;
+    Vector3 velocity;
+    float mass;
 } Body;
 
 cl_int get_device_id(cl_device_id *result)
@@ -200,32 +200,32 @@ const char *err_code (cl_int err_in)
 
 Vector3 read_vector(FILE *stream)
 {
-	float x, y, z;
-	fscanf(stream, "%f %f %f", &x, &y, &z);
+    float x, y, z;
+    fscanf(stream, "%f %f %f", &x, &y, &z);
     Vector3 result = { x, y, z };
-	return result;
+    return result;
 }
 
 void write_vector(FILE *stream, Vector3 v)
 {
-	fprintf(stream, "(%f, %f, %f)", v.x, v.y, v.z);
+    fprintf(stream, "(%f, %f, %f)", v.x, v.y, v.z);
 }
 
 Body read_body(FILE *stream)
 {
-	float mass;
-	fscanf(stream, "%f", &mass);
-	Body result = { read_vector(stream), read_vector(stream), mass };
-	return result;
+    float mass;
+    fscanf(stream, "%f", &mass);
+    Body result = { read_vector(stream), read_vector(stream), mass };
+    return result;
 }
 
 void write_body(FILE *stream, Body body)
 {
-	fprintf(stream, "body {\n\t'mass': %f\n\t'position': ", body.mass);
-	write_vector(stream, body.position);
-	fprintf(stream, "\n\t'velocity': ");
-	write_vector(stream, body.velocity);
-	fprintf(stream, "\n}");
+    fprintf(stream, "body {\n\t'mass': %f\n\t'position': ", body.mass);
+    write_vector(stream, body.position);
+    fprintf(stream, "\n\t'velocity': ");
+    write_vector(stream, body.velocity);
+    fprintf(stream, "\n}");
 }
 
 int main(int argc, char **argv)
@@ -235,20 +235,20 @@ int main(int argc, char **argv)
     }
 
     float g, body_radius, model_dt;
-	int bodies_count, simulation_steps;
-	
-	FILE *task_file = fopen(argv[2], "r");
-	fscanf(
-		task_file, "%f %f %f %d %d",
-		&g, &body_radius, &model_dt,
-		&bodies_count, &simulation_steps
-	);
-	
-	Body bodies[bodies_count];
-	for (int i = 0; i < bodies_count; ++i)
-		bodies[i] = read_body(task_file);
-			
-	fclose(task_file);
+    int bodies_count, simulation_steps;
+    
+    FILE *task_file = fopen(argv[2], "r");
+    fscanf(
+        task_file, "%f %f %f %d %d",
+        &g, &body_radius, &model_dt,
+        &bodies_count, &simulation_steps
+    );
+    
+    Body bodies[bodies_count];
+    for (int i = 0; i < bodies_count; ++i)
+        bodies[i] = read_body(task_file);
+            
+    fclose(task_file);
 
     cl_device_id device_id;
     cl_int status = get_device_id(&device_id);
@@ -300,11 +300,11 @@ int main(int argc, char **argv)
     clReleaseContext(context);
 
     FILE *solution_file = fopen(argv[3], "w");
-	for (int i = 0; i < bodies_count; ++i) {
-		write_body(solution_file, bodies[i]);
-		fprintf(solution_file, "\n");
-	}
-	fclose(solution_file);
+    for (int i = 0; i < bodies_count; ++i) {
+        write_body(solution_file, bodies[i]);
+        fprintf(solution_file, "\n");
+    }
+    fclose(solution_file);
 
     return 0;
 }
