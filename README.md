@@ -43,6 +43,25 @@ m x y z vx vy vz	//n раз
 
 В остальном нет отличий.
 
+### OpenCL
+
+Для компилляции предварительно требуется настроить поддержку OpenCL на своей машине:
+
+```
+$ sudo apt install opencl-headers ocl-icd-opencl-dev -y
+$ sudo apt install libpocl2 clinfo
+```
+
+Команды выше сработали для моей виртуальной машины на Ubuntu. Для того, чтобы установить поддержку на другие машины могут подойти эти ссылки: [1](https://forums.linuxmint.com/viewtopic.php?t=362544), [2](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/getting_started_linux.md).
+
+После настройки можно приступить непосредственно к компилляции.
+
+`$ gcc -Wall -Wextra -D CL_TARGET_OPENCL_VERSION=300 opencl/n-bodies.c -o opencl/n-bodies.nexe -lOpenCL`
+
+Для запуска потребуется, помимо файла с задачей, указать путь к `.cl`-файлу с кодом ядра. Команда для запуска:
+
+`$ ./opencl/n-bodies.nexe opencl/n-bodies.cl tasks/debug/1-step/task.txt path/to/solution.txt`
+
 ## Результаты экспериментов
 
 Понимаю-понимаю, но это лабораторные, отстаньте.
@@ -54,3 +73,7 @@ m x y z vx vy vz	//n раз
 ### Open MP
 
 ![open-mp](res/open-mp.png)
+
+### OpenCL
+
+![opencl](res/opencl.png)
