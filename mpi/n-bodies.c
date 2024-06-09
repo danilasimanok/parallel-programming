@@ -161,25 +161,26 @@ void master_process(
     // broadcast parameters
     MPI_Bcast(g_radius_dt, 3, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(bcount_steps, 2, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
-    // compute once
     int offset, subtask_size;
     get_subtask_parameters(bcount_steps[0], world_size, MASTER_RANK, &offset, &subtask_size);
-    
-    accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
-
     Body body_buff[subtask_size];
-    for (int i = 0; i < subtask_size; ++i)
-        body_buff[i] = bodies[offset + i];
 
-    MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+    for (int step = 0; step < bcount_steps[1]; ++step) {
+        MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
-    MPI_Scatter(bodies, subtask_size, mpi_body, body_buff, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
-    
-    move(g_radius_dt[2], subtask_size, body_buff);
+        accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
 
-    MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+        for (int i = 0; i < subtask_size; ++i)
+            body_buff[i] = bodies[offset + i];
+        MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+
+        MPI_Scatter(bodies, subtask_size, mpi_body, body_buff, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+
+        move(g_radius_dt[2], subtask_size, body_buff);
+
+        MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+    }
 
     for (int i = 0; i < bcount_steps[0]; ++i) {
         write_body(stdout, bodies[i]);
@@ -199,25 +200,27 @@ void slave_process(
     MPI_Bcast(g_radius_dt, 3, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(bcount_steps, 2, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
-    Body bodies[bcount_steps[0]];
-    MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
-
     int offset, subtask_size;
     get_subtask_parameters(bcount_steps[0], world_size, p_rank, &offset, &subtask_size);
 
-    accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
+    Body bodies[bcount_steps[0]],
+        body_buff[subtask_size];
 
-    Body body_buff[subtask_size];
-    for (int i = 0; i < subtask_size; ++i)
-        body_buff[i] = bodies[offset + i];
+    for (int step = 0; step < bcount_steps[1]; ++step) {
+        MPI_Bcast(bodies, bcount_steps[0], mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
-    MPI_Gather(bodies + offset, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+        accelerate(g_radius_dt[0], g_radius_dt[1], bcount_steps[0], bodies, offset, subtask_size);
 
-    MPI_Scatter(bodies, subtask_size, mpi_body, body_buff, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+        for (int i = 0; i < subtask_size; ++i)
+            body_buff[i] = bodies[offset + i];
+        MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
-    move(g_radius_dt[2], subtask_size, body_buff);
+        MPI_Scatter(bodies, subtask_size, mpi_body, body_buff, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
 
-    MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+        move(g_radius_dt[2], subtask_size, body_buff);
+
+        MPI_Gather(body_buff, subtask_size, mpi_body, bodies, subtask_size, mpi_body, MASTER_RANK, MPI_COMM_WORLD);
+    }
 }
 
 int main(int argc, char** argv)
